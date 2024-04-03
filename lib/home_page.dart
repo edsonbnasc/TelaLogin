@@ -15,6 +15,11 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    List<Map<String, dynamic>> tarefasFiltradas = tarefasPendentes.where((tarefa) {
+      String termoPesquisa = pesquisaController.text.toLowerCase();
+      return tarefa['tarefa'].toLowerCase().contains(termoPesquisa);
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(
         title: isSearching
@@ -61,75 +66,85 @@ class _HomePageState extends State<HomePage> {
                 ),
                 IconButton(
                   icon: Icon(Icons.add),
-                  onPressed: () {
-                    setState(() {
-                      tarefasPendentes.add({
-                        'tarefa': tarefaController.text,
-                        'concluida': false,
-                      });
-                      tarefaController.clear();
-                    });
-                  },
+                  onPressed: isSearching
+                      ? null
+                      : () {
+                          setState(() {
+                            tarefasPendentes.add({
+                              'tarefa': tarefaController.text,
+                              'concluida': false,
+                            });
+                            tarefaController.clear();
+                          });
+                        },
                 ),
               ],
             ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text('Tarefas Pendentes:'),
-                  Expanded(
+            isSearching
+                ? Expanded(
+                    child: ListView.builder(
+                      itemCount: tarefasFiltradas.length,
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          title: Text(tarefasFiltradas[index]['tarefa']),
+                        );
+                      },
+                    ),
+                  )
+                :  SizedBox(height: 20),
+                    Text('Tarefas Pendentes:'),
+                    Expanded(
                     child: ListView.builder(
                       itemCount: tarefasPendentes.length,
                       itemBuilder: (context, index) {
-                        return Dismissible(
-                          key: Key(tarefasPendentes[index]['tarefa']),
-                          direction: DismissDirection.endToStart,
-                          onDismissed: (direction) {
-                            setState(() {
-                              tarefasConcluidas.add(tarefasPendentes[index]);
-                              tarefasPendentes.removeAt(index);
-                            });
-                          },
-                          background: Container(
-                            alignment: AlignmentDirectional.centerEnd,
-                            color: Colors.green,
-                            child: Icon(Icons.check),
-                          ),
-                          child: ListTile(
-                            title: Text(tarefasPendentes[index]['tarefa']),
-                            trailing: IconButton(
-                              icon: Icon(Icons.edit),
-                              onPressed: () {
-                                _editTarefa(index);
-                              },
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  SizedBox(height: 20),
-                  Text('Tarefas Concluídas:'),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: tarefasConcluidas.length,
-                      itemBuilder: (context, index) {
                         return ListTile(
-                          title: Text(tarefasConcluidas[index]['tarefa']),
-                          trailing: IconButton(
-                            icon: Icon(Icons.delete),
-                            onPressed: () {
-                              setState(() {
-                                tarefasConcluidas.removeAt(index);
-                              });
-                            },
+                          
+                          title: Text(tarefasPendentes[index]['tarefa']),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[Text('Tarefas Concluídas:'),
+                              IconButton(
+                                icon: Icon(tarefasPendentes[index]['concluida']
+                                    ? Icons.check_box
+                                    : Icons.check_box_outline_blank,color:Colors.green),
+                                onPressed: () {
+                                  _toggleConcluida(tarefasPendentes[index]);
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.edit),
+                                onPressed: () {
+                                  _editTarefa(tarefasPendentes[index], index);
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () {
+                                  _delete(index);
+                                },
+                              ),
+                            ],
                           ),
                         );
                       },
                     ),
                   ),
-                ],
+            SizedBox(height: 20),
+            Text('Tarefas Concluídas:'),
+            Expanded(
+              child: ListView.builder(
+                itemCount: tarefasConcluidas.length,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    title: Text(tarefasConcluidas[index]['tarefa']),
+                    trailing: IconButton(
+                      icon: Icon(Icons.delete, color: Colors.redAccent),
+                      onPressed: () {
+                        _deleteConcluida(index);
+                      },
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -138,24 +153,25 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-   void _deleteTarefa(int index) {
+  void _toggleConcluida(Map<String, dynamic> tarefa) {
     setState(() {
-      tarefasPendentes.removeAt(index);
+      if (tarefa['concluida']) {
+        tarefasConcluidas.remove(tarefa);
+        tarefasPendentes.add(tarefa);
+      } else {
+        tarefasPendentes.remove(tarefa);
+        tarefasConcluidas.add(tarefa);
+      }
+      tarefa['concluida'] = !tarefa['concluida'];
     });
   }
 
-  void _toggleConcluida(int index) {
-    setState(() {
-      tarefasPendentes[index]['concluida'] = !tarefasPendentes[index]['concluida'];
-    });
-  }
-
-  void _editTarefa(int index) {
+  void _editTarefa(Map<String, dynamic> tarefa, int index) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         TextEditingController editingController =
-            TextEditingController(text: tarefasPendentes[index]['tarefa']);
+            TextEditingController(text: tarefa['tarefa']);
         return AlertDialog(
           title: Text('Editar Tarefa'),
           content: TextField(
@@ -166,7 +182,7 @@ class _HomePageState extends State<HomePage> {
             TextButton(
               onPressed: () {
                 setState(() {
-                  tarefasPendentes[index]['tarefa'] = editingController.text;
+                  tarefa['tarefa'] = editingController.text;
                   Navigator.pop(context);
                 });
               },
@@ -176,5 +192,17 @@ class _HomePageState extends State<HomePage> {
         );
       },
     );
+  }
+
+  void _delete(int index) {
+    setState(() {
+      tarefasPendentes.removeAt(index);
+    });
+  }
+
+  void _deleteConcluida(int index) {
+    setState(() {
+      tarefasConcluidas.removeAt(index);
+    });
   }
 }

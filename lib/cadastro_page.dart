@@ -18,7 +18,7 @@ class CadastroPage extends StatelessWidget {
       body: Padding(
         padding: EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+         
           children: <Widget>[
             TextField(
               controller: emailController,
